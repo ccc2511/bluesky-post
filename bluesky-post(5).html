@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Bluesky 投稿</title>
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="BSky投稿">
+<meta name="theme-color" content="#0085ff">
+<link rel="manifest" href="manifest.json">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=M+PLUS+Rounded+1c:wght@700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0f0f13;
+    --surface: #1a1a22;
+    --surface2: #22222e;
+    --border: #32324a;
+    --primary: #0085ff;
+    --primary-dim: #0085ff22;
+    --text: #e8e8f0;
+    --text-sub: #9090b0;
+    --text-dim: #55556a;
+    --danger: #ff6b6b;
+    --success: #4ecb71;
+    --radius: 16px;
+    --radius-sm: 10px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body {
+    font-family: 'Noto Sans JP', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding-bottom: 110px;
+  }
+
+  .header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 20px 14px;
+    position: sticky; top: 0; z-index: 50;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .header-logo { font-size: 22px; }
+  .header-title {
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+    font-size: 20px; font-weight: 700; color: var(--primary);
+  }
+  .header-account {
+    margin-left: auto; font-size: 12px; color: var(--text-sub);
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 20px; padding: 4px 12px; cursor: pointer;
+  }
+
+  .section { padding: 16px 16px 0; }
+  .label {
+    font-size: 12px; font-weight: 700; color: var(--text-sub);
+    text-transform: uppercase; letter-spacing: 0.08em;
+    margin-bottom: 8px;
+  }
+
+  .login-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 20px;
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .login-card.hidden { display: none; }
+  .input-field {
+    width: 100%; background: var(--surface2);
+    border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+    padding: 12px 14px; color: var(--text); font-size: 15px; font-family: inherit;
+    outline: none; transition: border-color 0.15s;
+  }
+  .input-field:focus { border-color: var(--primary); }
+  .input-field::placeholder { color: var(--text-dim); }
+  .hint-text {
+    font-size: 12px; color: var(--text-sub); line-height: 1.6;
+    background: var(--primary-dim); border-radius: 8px; padding: 10px 12px;
+  }
+  .btn-login {
+    width: 100%; height: 48px; background: var(--primary); color: white;
+    border: none; border-radius: var(--radius-sm);
+    font-size: 15px; font-weight: 700; font-family: 'M PLUS Rounded 1c', sans-serif;
+    cursor: pointer; transition: opacity 0.15s;
+  }
+  .btn-login:active { opacity: 0.8; }
+  .btn-login:disabled { opacity: 0.45; }
+
+  .logged-in-bar {
+    background: #4ecb7120; border: 1px solid #4ecb7140;
+    border-radius: var(--radius-sm); padding: 10px 14px;
+    display: none; align-items: center; gap: 10px; font-size: 13px;
+  }
+  .logged-in-bar.show { display: flex; }
+  .logged-in-bar .check { color: var(--success); font-size: 18px; }
+  .logged-in-bar .handle { font-weight: 700; color: var(--text); flex: 1; }
+  .btn-logout {
+    background: none; border: 1px solid var(--border);
+    border-radius: 8px; padding: 4px 10px;
+    color: var(--text-sub); font-size: 11px; cursor: pointer;
+  }
+
+  .post-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); overflow: hidden;
+  }
+  .post-textarea {
+    width: 100%; background: transparent; border: none;
+    padding: 16px; color: var(--text); font-family: 'Noto Sans JP', sans-serif;
+    font-size: 16px; line-height: 1.7; resize: none; min-height: 120px; outline: none;
+  }
+  .post-textarea::placeholder { color: var(--text-dim); }
+  .post-divider { height: 1px; background: var(--border); }
+
+  /* Image row */
+  .image-row {
+    display: flex; gap: 8px; padding: 12px;
+    flex-wrap: nowrap; overflow-x: auto; align-items: center;
+    min-height: 104px; -webkit-overflow-scrolling: touch;
+  }
+  .thumb-wrap {
+    width: 80px; height: 80px; border-radius: 10px; overflow: hidden;
+    position: relative; flex-shrink: 0;
+    touch-action: none; user-select: none;
+    transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
+  }
+  .thumb-wrap img { width: 100%; height: 100%; object-fit: cover; pointer-events: none; display: block; }
+  .thumb-wrap.is-dragging { opacity: 0.45; transform: scale(1.06); box-shadow: 0 8px 28px #000a; z-index: 20; }
+  .thumb-wrap.drag-over { outline: 2.5px solid var(--primary); outline-offset: 2px; }
+  .order-badge {
+    position: absolute; bottom: 4px; left: 5px;
+    background: #000c; color: rgba(255,255,255,.85);
+    font-size: 10px; font-weight: 700; border-radius: 4px; padding: 1px 5px;
+    pointer-events: none;
+  }
+  .drag-handle {
+    position: absolute; top: 4px; left: 4px;
+    background: #000b; border-radius: 4px; padding: 2px 3px; pointer-events: none; opacity: .8;
+  }
+  .drag-handle svg { width: 10px; height: 10px; fill: white; display: block; }
+  .thumb-remove {
+    position: absolute; top: 3px; right: 3px;
+    width: 22px; height: 22px; border-radius: 50%; background: #000b;
+    border: none; color: white; font-size: 14px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .add-img-btn {
+    width: 80px; height: 80px; flex-shrink: 0; border-radius: 10px;
+    border: 2px dashed var(--border); background: transparent; color: var(--text-sub);
+    cursor: pointer; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 4px; font-size: 11px;
+    transition: all 0.15s;
+  }
+  .add-img-btn:active { border-color: var(--primary); color: var(--primary); }
+  .add-img-btn svg { width: 22px; height: 22px; fill: currentColor; }
+  #fileInput { display: none; }
+
+  .drag-tip { font-size: 11px; color: var(--text-dim); padding: 0 14px 8px; display: none; }
+  .drag-tip.show { display: block; }
+
+  .counter-row {
+    display: flex; align-items: center; padding: 8px 14px 12px; gap: 8px;
+  }
+  .char-count { font-size: 13px; font-variant-numeric: tabular-nums; color: var(--text-sub); margin-left: auto; }
+  .char-count.warn { color: var(--danger); font-weight: 700; }
+
+  /* Tags */
+  .tags-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 14px;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .tag-input-row { display: flex; gap: 6px; }
+  .tag-input {
+    flex: 1; background: var(--surface2); border: 1.5px solid var(--border);
+    border-radius: 8px; padding: 10px 12px; color: var(--text); font-size: 14px;
+    font-family: inherit; outline: none; transition: border-color 0.15s;
+  }
+  .tag-input:focus { border-color: var(--primary); }
+  .tag-input::placeholder { color: var(--text-dim); }
+  .tag-add-btn {
+    width: 40px; height: 40px; border-radius: 8px; border: none;
+    background: var(--primary-dim); color: var(--primary);
+    font-size: 22px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .tag-add-btn:active { background: var(--primary); color: white; }
+  .tags-wrap { display: flex; flex-wrap: wrap; gap: 6px; }
+  .tag-chip {
+    display: flex; align-items: center; gap: 4px;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 20px; padding: 4px 10px; font-size: 12px; color: var(--text);
+  }
+  .tag-hash { color: var(--primary); font-weight: 700; }
+  .tag-del {
+    background: none; border: none; color: var(--text-dim);
+    font-size: 14px; cursor: pointer; padding: 0;
+    width: 16px; height: 16px; display: flex; align-items: center; justify-content: center;
+  }
+
+  /* Adult label */
+  .label-row {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 14px 16px;
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  .label-row.active { border-color: var(--danger); background: #ff6b6b0d; }
+  .label-row-info { display: flex; flex-direction: column; gap: 3px; flex: 1; }
+  .label-row-title { font-size: 14px; font-weight: 700; color: var(--text); }
+  .label-row-desc { font-size: 11px; color: var(--text-sub); line-height: 1.5; }
+  .toggle-wrap { position: relative; width: 50px; height: 28px; flex-shrink: 0; }
+  .toggle-wrap input { opacity: 0; width: 0; height: 0; position: absolute; }
+  .toggle-track {
+    position: absolute; inset: 0; background: var(--border);
+    border-radius: 14px; cursor: pointer; transition: background 0.2s;
+  }
+  .toggle-wrap input:checked + .toggle-track { background: var(--danger); }
+  .toggle-knob {
+    position: absolute; width: 22px; height: 22px; border-radius: 50%;
+    background: white; top: 3px; left: 3px; pointer-events: none;
+    transition: transform 0.25s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  .toggle-wrap input:checked ~ .toggle-knob { transform: translateX(22px); }
+
+  /* Bottom */
+  .bottom-bar {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: var(--surface); border-top: 1px solid var(--border);
+    padding: 10px 16px 24px; z-index: 100;
+  }
+  .btn-post {
+    width: 100%; height: 52px; background: var(--primary);
+    color: white; border: none; border-radius: var(--radius-sm);
+    font-size: 17px; font-weight: 700; font-family: 'M PLUS Rounded 1c', sans-serif;
+    cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
+    transition: opacity 0.15s; letter-spacing: 0.03em;
+  }
+  .btn-post:active { opacity: 0.85; }
+  .btn-post:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-post svg { width: 20px; height: 20px; fill: currentColor; }
+
+  /* Overlay */
+  .overlay {
+    position: fixed; inset: 0; background: #000a; z-index: 200;
+    display: none; flex-direction: column; align-items: center; justify-content: center;
+  }
+  .overlay.show { display: flex; }
+  .overlay-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 28px 36px;
+    text-align: center; min-width: 220px;
+    display: flex; flex-direction: column; align-items: center; gap: 14px;
+  }
+  .spinner {
+    width: 40px; height: 40px; border: 3px solid var(--border);
+    border-top-color: var(--primary); border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .overlay-msg { font-size: 14px; color: var(--text-sub); }
+  .overlay-icon { font-size: 40px; }
+
+  /* Lightbox */
+  .lightbox {
+    position: fixed; inset: 0; z-index: 400;
+    background: #000000ee;
+    display: none; align-items: center; justify-content: center;
+    flex-direction: column;
+  }
+  .lightbox.show { display: flex; }
+  .lightbox-img {
+    max-width: 96vw; max-height: 82vh;
+    object-fit: contain; border-radius: 8px;
+    animation: lbScale 0.22s cubic-bezier(0.34,1.4,0.64,1);
+    touch-action: pinch-zoom;
+  }
+  @keyframes lbScale { from { transform: scale(0.88); opacity:0; } to { transform: scale(1); opacity:1; } }
+  .lightbox-counter {
+    margin-top: 14px; font-size: 13px;
+    color: rgba(255,255,255,0.55); letter-spacing: 0.05em;
+  }
+  .lightbox-close {
+    position: absolute; top: 16px; right: 16px;
+    width: 40px; height: 40px; border-radius: 50%;
+    background: rgba(255,255,255,0.18); border: none;
+    color: white; font-size: 22px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .lightbox-nav {
+    position: absolute; top: 50%; transform: translateY(-50%);
+    width: 44px; height: 44px; border-radius: 50%;
+    background: rgba(255,255,255,0.18); border: none;
+    color: white; font-size: 22px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.15s;
+  }
+  .lightbox-nav:active { background: rgba(255,255,255,0.35); }
+  .lightbox-nav.prev { left: 12px; }
+  .lightbox-nav.next { right: 12px; }
+  .lightbox-nav.hide { visibility: hidden; }
+
+  /* Toast */
+  .toast {
+    position: fixed; top: 70px; left: 50%;
+    transform: translateX(-50%) translateY(-10px);
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 24px; padding: 10px 20px;
+    font-size: 13px; color: var(--text); box-shadow: 0 4px 20px #0008;
+    opacity: 0; pointer-events: none;
+    transition: all 0.3s cubic-bezier(0.34,1.56,0.64,1);
+    z-index: 300; white-space: nowrap;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .gap { height: 12px; }
+</style>
+</head>
+<body>
+
+
+<!-- Lightbox -->
+<div class="lightbox" id="lightbox" onclick="closeLightbox(event)">
+  <button class="lightbox-close" onclick="closeLightbox()">✕</button>
+  <button class="lightbox-nav prev hide" id="lbPrev" onclick="lbNav(-1,event)">&#8249;</button>
+  <img class="lightbox-img" id="lbImg" src="" alt="">
+  <button class="lightbox-nav next hide" id="lbNext" onclick="lbNav(1,event)">&#8250;</button>
+  <div class="lightbox-counter" id="lbCounter"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="overlay" id="overlay">
+  <div class="overlay-card">
+    <div class="spinner" id="spinner"></div>
+    <div class="overlay-icon" id="overlayIcon" style="display:none"></div>
+    <div class="overlay-msg" id="overlayMsg">投稿中…</div>
+  </div>
+</div>
+
+<div class="header">
+  <span class="header-logo">🦋</span>
+  <span class="header-title">Bluesky 投稿</span>
+  <span class="header-account" id="headerAccount" onclick="showLogin()" style="display:none">アカウント切替</span>
+</div>
+
+<!-- ① Login -->
+<div class="section" id="loginSection">
+  <div class="label">🔑 Blueskyにログイン</div>
+  <div class="login-card" id="loginCard">
+    <div class="hint-text">
+      ⚠️ パスワードは<b>アプリパスワード</b>を使ってください。<br>
+      Bluesky → 設定 → プライバシーとセキュリティ →
+      <b>アプリパスワード</b> → 「追加」で発行できます。<br>
+      <small>（通常パスワードは絶対に入れないでください）</small>
+    </div>
+    <input class="input-field" id="inputHandle" type="text"
+      placeholder="ハンドル例: you.bsky.social"
+      autocomplete="username" autocapitalize="none" spellcheck="false">
+    <input class="input-field" id="inputPassword" type="password"
+      placeholder="アプリパスワード (xxxx-xxxx-xxxx-xxxx)"
+      autocomplete="current-password">
+    <button class="btn-login" id="btnLogin" onclick="doLogin()">ログイン</button>
+  </div>
+  <div class="logged-in-bar" id="loggedInBar">
+    <span class="check">✅</span>
+    <span class="handle" id="loggedHandle"></span>
+    <button class="btn-logout" onclick="doLogout()">ログアウト</button>
+  </div>
+</div>
+
+<div class="gap"></div>
+
+<!-- ② Post -->
+<div class="section" id="postSection" style="display:none">
+  <div class="label">✏️ 投稿内容</div>
+  <div class="post-card">
+    <textarea class="post-textarea" id="postText"
+      placeholder="いまどうしてる？" oninput="updateCounter()" rows="4"></textarea>
+    <div class="post-divider"></div>
+    <div class="image-row" id="imageRow">
+      <button class="add-img-btn" onclick="document.getElementById('fileInput').click()">
+        <svg viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
+        画像追加
+      </button>
+    </div>
+    <div class="drag-tip" id="dragTip">☰ 長押しでドラッグして並べ替えできます</div>
+    <div class="post-divider"></div>
+    <div class="counter-row">
+      <span style="font-size:12px;color:var(--text-dim)">最大300文字・画像4枚まで</span>
+      <span class="char-count" id="charCount">0 / 300</span>
+    </div>
+  </div>
+  <input type="file" id="fileInput" accept="image/*" multiple onchange="onFileSelect(event)">
+
+  <div class="gap"></div>
+
+  <!-- ③ Tags -->
+  <div class="label">🏷️ ハッシュタグ（省略可）</div>
+  <div class="tags-card">
+    <div class="tag-input-row">
+      <input class="tag-input" id="tagInput" type="text"
+        placeholder="タグ入力 (Enterで追加)"
+        onkeydown="if(event.key==='Enter'){event.preventDefault();addTag()}"
+        autocapitalize="none">
+      <button class="tag-add-btn" onclick="addTag()">＋</button>
+    </div>
+    <div class="tags-wrap" id="tagsWrap">
+      <span style="font-size:12px;color:var(--text-dim)">タグなし</span>
+    </div>
+  </div>
+
+  <div class="gap"></div>
+
+  <!-- ④ Adult label -->
+  <div class="label">🔞 コンテンツラベル</div>
+  <div class="label-row" id="labelRow">
+    <div class="label-row-info">
+      <div class="label-row-title">🔞 成人向けコンテンツ</div>
+      <div class="label-row-desc">ONにすると「sexual」ラベルが付きます。<br>閲覧制限のある視聴者には非表示になります。</div>
+    </div>
+    <label class="toggle-wrap">
+      <input type="checkbox" id="adultToggle" onchange="onAdultToggle()">
+      <div class="toggle-track"></div>
+      <div class="toggle-knob"></div>
+    </label>
+  </div>
+</div>
+
+<!-- Bottom bar -->
+<div class="bottom-bar" id="bottomBar" style="display:none">
+  <button class="btn-post" id="btnPost" onclick="doPost()">
+    <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+    Blueskyに投稿
+  </button>
+</div>
+
+<script>
+let session = null;
+let images  = [];
+let tags    = [];
+
+// ── Login ──
+async function doLogin() {
+  const handle   = document.getElementById('inputHandle').value.trim();
+  const password = document.getElementById('inputPassword').value.trim();
+  if (!handle || !password) { showToast('⚠️ ハンドルとパスワードを入力してください'); return; }
+  const btn = document.getElementById('btnLogin');
+  btn.disabled = true; btn.textContent = '接続中…';
+  try {
+    const res  = await fetch('https://bsky.social/xrpc/com.atproto.server.createSession', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ identifier: handle, password })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || 'ログイン失敗');
+    session = { did: data.did, handle: data.handle, accessJwt: data.accessJwt, refreshJwt: data.refreshJwt };
+    // パスワードもセッション中は保持（トークン再取得のため）
+    session._identifier = handle;
+    session._password   = password;
+    sessionStorage.setItem('bskySession', JSON.stringify(session));
+    onLoggedIn();
+    showToast('✅ ログインしました: @' + session.handle);
+  } catch(e) { showToast('❌ ' + e.message); }
+  finally { btn.disabled = false; btn.textContent = 'ログイン'; }
+}
+function onLoggedIn() {
+  document.getElementById('loginCard').classList.add('hidden');
+  document.getElementById('loggedInBar').classList.add('show');
+  document.getElementById('loggedHandle').textContent = '@' + session.handle;
+  document.getElementById('headerAccount').style.display = '';
+  document.getElementById('postSection').style.display = '';
+  document.getElementById('bottomBar').style.display = '';
+}
+function doLogout() {
+  session = null; sessionStorage.removeItem('bskySession');
+  document.getElementById('loginCard').classList.remove('hidden');
+  document.getElementById('loggedInBar').classList.remove('show');
+  document.getElementById('headerAccount').style.display = 'none';
+  document.getElementById('postSection').style.display = 'none';
+  document.getElementById('bottomBar').style.display = 'none';
+  document.getElementById('inputPassword').value = '';
+  showToast('👋 ログアウトしました');
+}
+
+// ── トークン自動更新 ──
+async function refreshToken() {
+  // まずrefreshJwtで試みる
+  if (session && session.refreshJwt) {
+    try {
+      const res = await fetch('https://bsky.social/xrpc/com.atproto.server.refreshSession', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + session.refreshJwt }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        session.accessJwt  = data.accessJwt;
+        session.refreshJwt = data.refreshJwt;
+        sessionStorage.setItem('bskySession', JSON.stringify(session));
+        return true;
+      }
+    } catch(e) {}
+  }
+  // refreshJwtも失効していたら再ログイン
+  if (session && session._identifier && session._password) {
+    try {
+      const res = await fetch('https://bsky.social/xrpc/com.atproto.server.createSession', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identifier: session._identifier, password: session._password })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        session.accessJwt  = data.accessJwt;
+        session.refreshJwt = data.refreshJwt;
+        sessionStorage.setItem('bskySession', JSON.stringify(session));
+        return true;
+      }
+    } catch(e) {}
+  }
+  return false;
+}
+
+// トークン期限切れ時に自動リトライするfetch
+async function bskyFetch(url, options, retry = true) {
+  const res = await fetch(url, options);
+  if (res.status === 400 || res.status === 401) {
+    const err = await res.clone().json().catch(() => ({}));
+    if (retry && (err.error === 'ExpiredToken' || (err.message && err.message.includes('expired')))) {
+      const ok = await refreshToken();
+      if (ok) {
+        // Authorizationヘッダーを更新して再試行
+        options.headers['Authorization'] = 'Bearer ' + session.accessJwt;
+        return fetch(url, options);
+      }
+    }
+  }
+  return res;
+}
+
+function showLogin() { window.scrollTo({top:0,behavior:'smooth'}); }
+(function(){
+  const s = sessionStorage.getItem('bskySession');
+  if (s) try { session = JSON.parse(s); onLoggedIn(); } catch(e){}
+})();
+
+// ── Adult toggle ──
+function onAdultToggle() {
+  const on = document.getElementById('adultToggle').checked;
+  document.getElementById('labelRow').classList.toggle('active', on);
+}
+
+// ── Images ──
+function onFileSelect(e) {
+  Array.from(e.target.files).forEach(f => {
+    if (images.length >= 4) return;
+    images.push({ file: f, url: URL.createObjectURL(f) });
+  });
+  e.target.value = '';
+  renderImages();
+}
+
+function renderImages() {
+  const row = document.getElementById('imageRow');
+  row.innerHTML = '';
+  images.forEach((img, i) => {
+    const w = document.createElement('div');
+    w.className = 'thumb-wrap';
+    w.dataset.idx = i;
+    w.innerHTML = `
+      <img src="${img.url}" draggable="false">
+      <div class="drag-handle"><svg viewBox="0 0 24 24"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg></div>
+      <div class="order-badge">${i+1}</div>
+      <button class="thumb-remove" onclick="removeImage(${i},event)">×</button>
+    `;
+    attachDrag(w);
+    w.addEventListener('click', () => { if (w._wasDragged) return; openLightbox(i); });
+    row.appendChild(w);
+  });
+  if (images.length < 4) {
+    const btn = document.createElement('button');
+    btn.className = 'add-img-btn';
+    btn.innerHTML = `<svg viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>画像追加`;
+    btn.onclick = () => document.getElementById('fileInput').click();
+    row.appendChild(btn);
+  }
+  document.getElementById('dragTip').classList.toggle('show', images.length > 1);
+}
+
+function removeImage(i, e) {
+  e.stopPropagation();
+  images.splice(i, 1);
+  renderImages();
+}
+
+// ── Drag-to-reorder (touch + mouse) ──
+let dragSrc = null;
+
+function attachDrag(el) {
+  // --- Touch ---
+  let lpTimer = null, dragging = false, sx, sy;
+
+  el.addEventListener('touchstart', e => {
+    sx = e.touches[0].clientX; sy = e.touches[0].clientY;
+    lpTimer = setTimeout(() => {
+      dragging = true; dragSrc = el;
+      el.classList.add('is-dragging');
+      if (navigator.vibrate) navigator.vibrate(40);
+    }, 350);
+  }, { passive: true });
+
+  el.addEventListener('touchmove', e => {
+    if (!dragging) {
+      if (Math.abs(e.touches[0].clientX - sx) > 8 || Math.abs(e.touches[0].clientY - sy) > 8) {
+        clearTimeout(lpTimer); lpTimer = null;
+      }
+      return;
+    }
+    e.preventDefault();
+    const t   = e.touches[0];
+    const hit = document.elementFromPoint(t.clientX, t.clientY);
+    const over = hit && hit.closest('.thumb-wrap');
+    document.querySelectorAll('.thumb-wrap.drag-over').forEach(x => x.classList.remove('drag-over'));
+    if (over && over !== dragSrc) over.classList.add('drag-over');
+  }, { passive: false });
+
+  el.addEventListener('touchend', e => {
+    clearTimeout(lpTimer);
+    if (!dragging) return;
+    dragging = false; el.classList.remove('is-dragging');
+    el._wasDragged = true; setTimeout(()=>{ el._wasDragged=false; }, 100);
+    const t   = e.changedTouches[0];
+    const hit = document.elementFromPoint(t.clientX, t.clientY);
+    const over = hit && hit.closest('.thumb-wrap');
+    document.querySelectorAll('.thumb-wrap.drag-over').forEach(x => x.classList.remove('drag-over'));
+    if (over && over !== dragSrc) {
+      const from = parseInt(dragSrc.dataset.idx);
+      const to   = parseInt(over.dataset.idx);
+      const item = images.splice(from, 1)[0];
+      images.splice(to, 0, item);
+      renderImages();
+    }
+    dragSrc = null;
+  });
+
+  // --- Mouse ---
+  el.setAttribute('draggable', 'true');
+  el.addEventListener('dragstart', () => { dragSrc = el; el.classList.add('is-dragging'); });
+  el.addEventListener('dragend',   () => { el.classList.remove('is-dragging'); document.querySelectorAll('.thumb-wrap.drag-over').forEach(x=>x.classList.remove('drag-over')); });
+  el.addEventListener('dragover',  e => { e.preventDefault(); if (el !== dragSrc) el.classList.add('drag-over'); });
+  el.addEventListener('dragleave', () => el.classList.remove('drag-over'));
+  el.addEventListener('drop', e => {
+    e.preventDefault(); el.classList.remove('drag-over');
+    if (!dragSrc || dragSrc === el) return;
+    const from = parseInt(dragSrc.dataset.idx);
+    const to   = parseInt(el.dataset.idx);
+    const item = images.splice(from, 1)[0];
+    images.splice(to, 0, item);
+    dragSrc = null; renderImages();
+  });
+}
+
+// ── Tags ──
+function addTag() {
+  const inp = document.getElementById('tagInput');
+  const val = inp.value.trim().replace(/^#/, '');
+  if (!val || tags.includes(val)) { inp.value = ''; return; }
+  tags.push(val); inp.value = ''; renderTags();
+}
+function removeTag(i) { tags.splice(i,1); renderTags(); }
+function renderTags() {
+  const wrap = document.getElementById('tagsWrap');
+  wrap.innerHTML = '';
+  if (!tags.length) { wrap.innerHTML = '<span style="font-size:12px;color:var(--text-dim)">タグなし</span>'; return; }
+  tags.forEach((t,i) => {
+    const c = document.createElement('span');
+    c.className = 'tag-chip';
+    c.innerHTML = `<span class="tag-hash">#</span>${t}<button class="tag-del" onclick="removeTag(${i})">×</button>`;
+    wrap.appendChild(c);
+  });
+}
+
+// ── Counter ──
+function updateCounter() {
+  const len = document.getElementById('postText').value.length;
+  const el  = document.getElementById('charCount');
+  el.textContent = len + ' / 300';
+  el.className   = 'char-count' + (len > 280 ? ' warn' : '');
+}
+
+// ── Compression ──
+function fileToBase64(file) {
+  return new Promise((res, rej) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const MAX_BYTES = 900 * 1024, MAX_DIM = 2048;
+      let w = img.width, h = img.height;
+      if (w > MAX_DIM || h > MAX_DIM) {
+        if (w > h) { h = Math.round(h * MAX_DIM / w); w = MAX_DIM; }
+        else       { w = Math.round(w * MAX_DIM / h); h = MAX_DIM; }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      let quality = 0.85, dataUrl;
+      do {
+        dataUrl = canvas.toDataURL('image/jpeg', quality);
+        quality -= 0.1;
+      } while (dataUrl.length * 0.75 > MAX_BYTES && quality > 0.2);
+      res(dataUrl.split(',')[1]);
+    };
+    img.onerror = rej; img.src = url;
+  });
+}
+
+// ── POST ──
+async function doPost() {
+  if (!session) { showToast('❌ 先にログインしてください'); return; }
+  const rawText  = document.getElementById('postText').value;
+  const tagStr   = tags.length ? '\n' + tags.map(t => '#'+t).join(' ') : '';
+  const fullText = rawText + tagStr;
+  const isAdult  = document.getElementById('adultToggle').checked;
+
+  if (!fullText.trim() && images.length === 0) { showToast('⚠️ テキストか画像を入力してください'); return; }
+  if (fullText.length > 300) { showToast('⚠️ 300文字を超えています'); return; }
+
+  setOverlay(true, '画像をアップロード中…');
+  document.getElementById('btnPost').disabled = true;
+
+  try {
+    // 1. Upload images (in order)
+    const imageBlobs = [];
+    for (const img of images) {
+      const b64   = await fileToBase64(img.file);
+      const upRes = await bskyFetch('https://bsky.social/xrpc/com.atproto.repo.uploadBlob', {
+        method: 'POST',
+        headers: { 'Content-Type': 'image/jpeg', 'Authorization': 'Bearer ' + session.accessJwt },
+        body: Uint8Array.from(atob(b64), c => c.charCodeAt(0))
+      });
+      if (!upRes.ok) { const err = await upRes.json(); throw new Error('画像アップロード失敗: ' + (err.message || upRes.status)); }
+      const upData = await upRes.json();
+      imageBlobs.push({ $type: 'app.bsky.embed.images#image', image: upData.blob, alt: '' });
+    }
+
+    // 2. Facets
+    const encoder = new TextEncoder();
+    const facets  = [];
+    if (tags.length) {
+      let offset = encoder.encode(rawText + '\n').byteLength;
+      for (const t of tags) {
+        const tagFull  = '#' + t;
+        const tagBytes = encoder.encode(tagFull).byteLength;
+        facets.push({ index: { byteStart: offset, byteEnd: offset + tagBytes }, features: [{ $type: 'app.bsky.richtext.facet#tag', tag: t }] });
+        offset += tagBytes + 1;
+      }
+    }
+
+    // 3. Record
+    setOverlay(true, '投稿中…');
+    const record = {
+      $type: 'app.bsky.feed.post',
+      text: fullText,
+      createdAt: new Date().toISOString(),
+      langs: ['ja']
+    };
+    if (facets.length)     record.facets = facets;
+    if (imageBlobs.length) record.embed  = { $type: 'app.bsky.embed.images', images: imageBlobs };
+    if (isAdult)           record.labels = { $type: 'com.atproto.label.defs#selfLabels', values: [{ val: 'sexual' }] };
+
+    const postRes = await bskyFetch('https://bsky.social/xrpc/com.atproto.repo.createRecord', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + session.accessJwt },
+      body: JSON.stringify({ repo: session.did, collection: 'app.bsky.feed.post', record })
+    });
+    if (!postRes.ok) { const err = await postRes.json(); throw new Error(err.message || '投稿に失敗しました'); }
+
+    setOverlay(true, '投稿しました！', '🎉');
+    setTimeout(() => {
+      setOverlay(false);
+      showToast('✅ Blueskyに投稿しました！');
+      document.getElementById('postText').value = '';
+      document.getElementById('adultToggle').checked = false;
+      document.getElementById('labelRow').classList.remove('active');
+      images = []; renderImages(); updateCounter();
+      tags   = []; renderTags();
+    }, 1800);
+
+  } catch(e) {
+    setOverlay(false); showToast('❌ ' + e.message);
+  } finally {
+    document.getElementById('btnPost').disabled = false;
+  }
+}
+
+
+// ── Lightbox ──
+let lbIndex = 0;
+function openLightbox(i) {
+  lbIndex = i;
+  renderLightbox();
+  document.getElementById('lightbox').classList.add('show');
+  document.body.style.overflow = 'hidden';
+}
+function renderLightbox() {
+  const img = document.getElementById('lbImg');
+  img.src = images[lbIndex].url;
+  // re-trigger animation
+  img.style.animation = 'none';
+  img.offsetHeight;
+  img.style.animation = '';
+  document.getElementById('lbCounter').textContent =
+    images.length > 1 ? (lbIndex + 1) + ' / ' + images.length : '';
+  document.getElementById('lbPrev').classList.toggle('hide', lbIndex === 0);
+  document.getElementById('lbNext').classList.toggle('hide', lbIndex === images.length - 1);
+}
+function closeLightbox(e) {
+  if (e && e.target !== document.getElementById('lightbox') && !e.target.classList.contains('lightbox-close')) return;
+  document.getElementById('lightbox').classList.remove('show');
+  document.body.style.overflow = '';
+}
+function lbNav(dir, e) {
+  e.stopPropagation();
+  lbIndex = Math.max(0, Math.min(images.length - 1, lbIndex + dir));
+  renderLightbox();
+}
+// swipe on lightbox
+(function(){
+  let sx;
+  const lb = document.getElementById('lightbox');
+  lb.addEventListener('touchstart', e => { sx = e.touches[0].clientX; }, { passive: true });
+  lb.addEventListener('touchend', e => {
+    const dx = e.changedTouches[0].clientX - sx;
+    if (Math.abs(dx) > 50) {
+      const dir = dx < 0 ? 1 : -1;
+      const next = lbIndex + dir;
+      if (next >= 0 && next < images.length) { lbIndex = next; renderLightbox(); }
+    }
+  });
+})();
+
+// ── Service Worker 登録 ──
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/bluesky-post/sw.js')
+    .catch(e => console.warn('SW registration failed:', e));
+}
+
+// ── Web Share Target：共有で起動された時に画像を受け取る ──
+async function handleShareTarget() {
+  if (!navigator.serviceWorker) return;
+  const reg = await navigator.serviceWorker.ready;
+  if (!reg) return;
+  // URLパラメータから共有データを取得
+  const params = new URLSearchParams(location.search);
+  // Share Target APIのファイルはService Worker経由で受け取る
+  const shareData = sessionStorage.getItem('sharedImages');
+  if (shareData) {
+    try {
+      // Base64データURLとして保存されている場合
+      sessionStorage.removeItem('sharedImages');
+    } catch(e) {}
+  }
+}
+
+// ── Helpers ──
+function setOverlay(show, msg, icon) {
+  document.getElementById('overlay').classList.toggle('show', show);
+  if (show) {
+    document.getElementById('overlayMsg').textContent     = msg || '';
+    document.getElementById('spinner').style.display     = icon ? 'none' : '';
+    document.getElementById('overlayIcon').style.display = icon ? '' : 'none';
+    document.getElementById('overlayIcon').textContent   = icon || '';
+  }
+}
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
+}
+</script>
+</body>
+</html>
